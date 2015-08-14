@@ -8,6 +8,24 @@
         text-align: center;
         min-width: 500px;
       }
+      
+      /* canvas overlaying an image -  http://stackoverflow.com/questions/14824747/overlay-html5-canvas-over-image */
+      .outsideWrapper{ 
+          width:768px; height:432px;
+          display:inline-block;
+          border:0px solid blue;}
+      .insideWrapper{ 
+          width:100%; height:100%; 
+          position:relative;}
+      .coveredImage{ 
+          width:100%; height:100%; 
+          position:absolute; top:0px; left:0px;
+      }
+      .coveringCanvas{ 
+          width:100%; height:100%; 
+          position:absolute; top:0px; left:0px;
+          background-color: rgba(0,0,0,0);
+      }
     </style>
     <script src="http://code.jquery.com/jquery.min.js"></script>
     <script>
@@ -29,8 +47,14 @@
           //ws.onmessage = function(evt) {alert("message received: " + evt.data)};
           ws.onmessage = function(evt) {
             message_id++;
-            console.log(message_id);
+            //console.log(message_id);
             $("#messages_received").after(message_id+". "+evt.data+"<br>")
+            
+            // turn the message (JSON) into a JS object and hand over direction messages to the canvas drawing to overlay on top of the main camera
+            msg_json = JSON.parse(evt.data); // json in the format of : {"type": "direction_angle", "value": 90}
+            if (msg_json.type == "direction_angle") {
+              draw_wheel_on_image(msg_json.value); // draw the direction of the wheels on top of the front camera image
+            }
           };
  
           ws.onclose = function(evt) { alert("Connection close"); };
@@ -110,7 +134,12 @@
   <body>
     <img src="http://10.65.43.115:8081/" width="288" height="160" /> <!-- original cam size: 432x240 -->
     <br />
-    <img src="http://10.65.43.115:8080/" width="768" height="432" /> <!-- original cam size: 1024x576 -->
+    <div class="outsideWrapper"> <!-- canvas overlaying an image - http://stackoverflow.com/questions/14824747/overlay-html5-canvas-over-image -->
+      <div class="insideWrapper">
+        <img src="http://10.65.43.115:8080/" width="768" height="432" class="coveredImage" /> <!-- original cam size: 1024x576 -->
+        <canvas id="main_video_canvas" class="coveringCanvas"></canvas>
+      </div>
+    </div>
     <br />
     <div>
       <label for="host">host:</label>
@@ -133,6 +162,50 @@
     <div id="messages_received">
       
     </div>
+    
+    
+    
+    
+    <script type="text/javascript">
+      var WIDTH = 768;
+      var HEIGHT = 432;
+      function draw_wheel_on_image(angle) {
+        angle = typeof angle !== 'undefined' ? angle : 90; // if angle function attribute is not defined then it will be set to 90 by default
+        //console.log(angle);
+        layer1 = document.getElementById("main_video_canvas");
+        ctx1 = layer1.getContext("2d");
+        ctx1.clearRect(0, 0, WIDTH, HEIGHT); // clear the canvas to draw the new iamge
+        ctx1.beginPath();
+        
+        var ang = 90 - angle; // set the angle of the wheel
+        
+        // left wheel
+        for (i=0; i < 5; i++) {
+          ctx1.moveTo(60+i*5, 147); // starting point of the drawing at the bottom of the image
+          ctx1.lineTo(120 + ang, 20);
+        }
+        
+        // right wheel
+        for (i=0; i < 5; i++) {
+          ctx1.moveTo(235-i*5, 147); // starting point of the drawing at the bottom of the image
+          ctx1.lineTo(170 + ang, 20);
+        }
+        
+        ctx1.lineWidth = 5;
+        
+        // set line color
+        var grad = ctx1.createLinearGradient(30, 30, 30, 150);
+        grad.addColorStop(0, 'rgba(0,153,0,0.4)'); // green
+        grad.addColorStop(1, 'rgba(255,0,0,0.4)'); // red
+        ctx1.strokeStyle = grad;
+        //ctx1.strokeStyle = 'rgba(100,0,0,0.4)';
+        
+        ctx1.stroke();
+        ctx1.closePath();
+      }
+      draw_wheel_on_image();
+      
+    </script>
   </body>
 </html>
  
